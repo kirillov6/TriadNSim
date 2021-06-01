@@ -340,9 +340,10 @@ namespace TriadNSim.Ontology
                 {
                     string polusName = link.FromCP.Owner == obj ? link.PolusTo : link.PolusFrom;
                     Polus neighborPolus = neighbor.Routine.GetPolus(polusName);
+                    string neighborName = neighbor.Routine.Name;
                     IOWLClass indivClass = GetIndividualClass(indiv);
                     IOWLClass canConnectedWith = GetClass(neighborPolus.CanConnectedWith);
-                    if (indivClass.Name != canConnectedWith.Name && !IsSubclassOf(indivClass, canConnectedWith))
+                    if (indivClass.Name != neighborName || !IsSubclassOf(indivClass, canConnectedWith))
                         return false;
                 }
             }
