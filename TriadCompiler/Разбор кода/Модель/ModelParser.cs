@@ -57,7 +57,7 @@ namespace TriadCompiler
                 RegisterStandardFuntions();
 
                 //Имя модели
-                HeaderName.Parse( endKeys.UniteWith( Key.LeftBracket, Key.Structure, Key.Routine,
+                HeaderName.Parse( endKeys.UniteWith( Key.LeftBracket, Key.Structure, Key.Routine, Key.IRoutine,
                     Key.Include, Key.Define, Key.EndModel ), delegate( string headerName )
                         {
                             this.designTypeName = headerName;
@@ -68,7 +68,7 @@ namespace TriadCompiler
                 Fabric.Instance.Builder.SetClassName( designTypeName );
 
                 //Параметры модели
-                List<IExprType> varTypeList = ParameterSection.Parse( endKeys.UniteWith( Key.Structure, Key.Routine, Key.Include,
+                List<IExprType> varTypeList = ParameterSection.Parse( endKeys.UniteWith( Key.Structure, Key.Routine, Key.IRoutine, Key.Include,
                     Key.Define, Key.EndModel ), VarDeclarationContext.Common );
 
                 foreach ( IExprType varType in varTypeList )
@@ -83,9 +83,10 @@ namespace TriadCompiler
                 List<Key> allowedTypeList = new List<Key>();
                 allowedTypeList.Add( Key.Structure );
                 allowedTypeList.Add( Key.Routine );
+                allowedTypeList.Add(Key.IRoutine);
 
                 //Объявления структур и рутин
-                while ( currKey == Key.Structure || currKey == Key.Routine || currKey == Key.Include )
+                while ( currKey == Key.Structure || currKey == Key.Routine || currKey == Key.IRoutine || currKey == Key.Include )
                     {
                     //Сохраняем текущий парсер и кодостроитель
                     CommonParser currParser = Fabric.Instance.Parser;
@@ -98,7 +99,7 @@ namespace TriadCompiler
                         Fabric.Instance.Builder = new GraphCodeBuilder();
                         }
                     //Объявление рутины
-                    else if ( currKey == Key.Routine )
+                    else if (currKey == Key.Routine || currKey == Key.IRoutine)
                         {
                         Fabric.Instance.Parser = new RoutineParser();
                         Fabric.Instance.Builder = new RoutineCodeBuilder();
@@ -106,13 +107,13 @@ namespace TriadCompiler
                     //Секция подключений
                     else if ( currKey == Key.Include )
                         {
-                        IncludeSection.Parse( endKeys.UniteWith( Key.Include, Key.Structure, Key.Routine, Key.Define, Key.EndModel ), allowedTypeList );
+                        IncludeSection.Parse( endKeys.UniteWith( Key.Include, Key.Structure, Key.Routine, Key.IRoutine, Key.Define, Key.EndModel ), allowedTypeList );
                         continue;
                         }
 
                     //Сохраняем контекст
                     Fabric.Instance.Scanner.SaveSymbol( currSymbol );
-                    Fabric.Instance.Parser.Compile( endKeys.UniteWith( Key.Include, Key.Structure, Key.Routine, Key.Define, Key.EndModel ) );
+                    Fabric.Instance.Parser.Compile( endKeys.UniteWith( Key.Include, Key.Structure, Key.Routine, Key.IRoutine, Key.Define, Key.EndModel ) );
                     Fabric.Instance.Builder.Build();
 
                     //Восстанавливаем контекст

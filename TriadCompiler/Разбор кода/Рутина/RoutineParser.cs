@@ -12,6 +12,9 @@ namespace TriadCompiler
     /// </summary>
     internal partial class RoutineParser : CommonParser
         {
+
+        private bool m_IsIRoutine = false;
+
         /// <summary>
         /// Строитель кода
         /// </summary>
@@ -50,22 +53,27 @@ namespace TriadCompiler
         /// EventPart { EventPart } EndRoutine</syntax>
         /// <param name="endKeys">Множество допустимых конечных символов</param>
         private void Routine( EndKeyList endKeys )
+        {
+            if ( currKey != Key.Routine && currKey != Key.IRoutine)
             {
-            if ( currKey != Key.Routine )
-                {
-                err.Register( Err.Parser.WrongStartSymbol.Routine, Key.Routine );
-                SkipTo( endKeys.UniteWith( Key.Routine ) );
-                }
-            if ( currKey == Key.Routine )
-                {
-                Accept( Key.Routine );
+                err.Register(Err.Parser.WrongStartSymbol.Routine, Key.Routine, Key.IRoutine);
+                SkipTo(endKeys.UniteWith(Key.Routine, Key.IRoutine));
+            }
+            else
+            {
+                m_IsIRoutine = currKey == Key.IRoutine;
+
+                if (m_IsIRoutine)
+                    Accept(Key.IRoutine);
+                else
+                    Accept(Key.Routine);
 
                 //Тип рутины
                 DesignTypeType designTypeType = null;
 
                 //Имя рутины
                 HeaderName.Parse( endKeys.UniteWith( Key.LeftPar, Key.LeftBracket, Key.Initial,
-                    Key.Event, Key.EndRoutine ), delegate( string headerName )
+                    Key.Event, m_IsIRoutine ? Key.EndIRoutine : Key.EndRoutine), delegate( string headerName )
                         {
                             designTypeType = new DesignTypeType( headerName, DesignTypeCode.Routine );
                             CommonArea.Instance.Register( designTypeType );
@@ -91,41 +99,47 @@ namespace TriadCompiler
 
 
                 //Заголовок
-                List<IExprType> parameters = Header.Parse(endKeys.UniteWith(Key.Initial, Key.Event, Key.EndRoutine));
+                List<IExprType> parameters = Header.Parse(endKeys.UniteWith(Key.Initial, Key.Event, m_IsIRoutine ? Key.EndIRoutine : Key.EndRoutine));
                 designTypeType.AddParameterList(parameters);
 
                 (designTypeInfo as RoutineInfo).Parameters.AddRange(parameters);
 
                 //Секция инициализации
                 if ( currKey == Key.Initial )
-                    {
-                    InitialPart( endKeys.UniteWith( Key.Initial, Key.Event, Key.EndRoutine ) );
-                    }
+                {
+                    InitialPart( endKeys.UniteWith( Key.Initial, Key.Event, m_IsIRoutine ? Key.EndIRoutine : Key.EndRoutine) );
+                }
 
                 //Очищаем список обращений к событиям
                 EventArea.Instance.ClearEventCallList();
 
                 //События			
                 while ( currKey == Key.Event )
-                    {
-                    EventPart( endKeys.UniteWith( Key.Event, Key.EndRoutine ) );
-                    }
+                {
+                    EventPart( endKeys.UniteWith( Key.Event, m_IsIRoutine ? Key.EndIRoutine : Key.EndRoutine) );
+                }
 
                 //Проверка, все ли события были описаны
                 EventArea.Instance.CheckEventDefinitions();
                 
                 //Убираем область видимости
                 varArea.RemoveArea();
-                
-                Accept( Key.EndRoutine );
+
+                if (m_IsIRoutine)
+                    Accept(Key.EndIRoutine);
+                else
+                    Accept(Key.EndRoutine);
 
                 if ( !endKeys.Contains( currKey ) )
-                    {
-                    err.Register( Err.Parser.WrongEndSymbol.Routine, endKeys.GetLastKeys() );
+                {
+                    if (m_IsIRoutine)
+                        err.Register(Err.Parser.WrongEndSymbol.IRoutine, endKeys.GetLastKeys());
+                    else
+                        err.Register(Err.Parser.WrongEndSymbol.Routine, endKeys.GetLastKeys());
                     SkipTo( endKeys );
-                    }
                 }
             }
+        }
 
 
         /// <summary>

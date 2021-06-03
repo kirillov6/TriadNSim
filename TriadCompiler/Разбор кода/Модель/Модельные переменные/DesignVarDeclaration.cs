@@ -32,6 +32,7 @@ namespace TriadCompiler.Parser.Model.Declaration.DesignVariable
                     break;
                 //Переменная - рутина
                 case Key.Routine:
+                case Key.IRoutine:
                     varTypeCode = DesignTypeCode.Routine;
                     break;
                 //Модельная переменная

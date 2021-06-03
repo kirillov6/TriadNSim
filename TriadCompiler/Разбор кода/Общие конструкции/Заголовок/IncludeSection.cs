@@ -55,6 +55,7 @@ namespace TriadCompiler.Parser.Common.Header
                         break;
                     //Подключается рутина
                     case Key.Routine:
+                    case Key.IRoutine:
                         designType.Code = DesignTypeCode.Routine;
                         break;
                     //Подключается модель

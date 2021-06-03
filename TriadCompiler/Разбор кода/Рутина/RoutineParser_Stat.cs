@@ -27,7 +27,7 @@ namespace TriadCompiler
                 if ( routineStatementSet == null )
                     {
                     Key[] keySet = { Key.Identificator, Key.For, Key.Case, Key.While, Key.Shedule, Key.Out,
-                            Key.If, Key.Cancel, Key.Interlock, Key.Available, Key.Print, Key.Foreach };
+                            Key.If, Key.Cancel, Key.Interlock, Key.Available, Key.Print, Key.Foreach, Key.Rule };
 
                     routineStatementSet = new List<Key>( keySet );
                     //Объявление переменных
@@ -122,6 +122,11 @@ namespace TriadCompiler
                         //Оператор перебора элементов мн-ва
                         case Key.Foreach:
                             statementList.AddRange( Foreach.Parse( endKeys, context ) );
+                            break;
+                        case Key.Rule:
+                            if (context != StatementContext.MessageEvent)
+                                err.Register(Err.Parser.Usage.Context.Rule);
+                            statementList.AddRange(Rule.Parse(endKeys, context));
                             break;
                         }
                     }

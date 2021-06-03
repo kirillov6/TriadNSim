@@ -19,7 +19,7 @@ namespace TriadCompiler.Parser.Common.Statement
         /// <param name="endKeys">Множество конечных символов</param>
         /// <param name="context">Текущий контекст</param>
         /// <returns>Представление для генерации кода</returns>
-        public static CodeStatement Parse( EndKeyList endKeys, StatementContext context )
+        public static CodeStatement Parse( EndKeyList endKeys, StatementContext context, bool bOnlyIf = false )
             {
             CodeConditionStatement isStatement = new CodeConditionStatement();
             Accept( Key.If );
@@ -33,7 +33,7 @@ namespace TriadCompiler.Parser.Common.Statement
 
             isStatement.TrueStatements.AddRange( StatementList.Parse( endKeys.UniteWith( Key.Else, Key.EndIf ), context ) );
 
-            if ( currKey == Key.Else )
+            if (!bOnlyIf && currKey == Key.Else )
                 {
                 GetNextKey();
                 isStatement.FalseStatements.AddRange( StatementList.Parse( endKeys.UniteWith( Key.EndIf ), context ) );

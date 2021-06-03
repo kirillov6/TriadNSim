@@ -573,12 +573,38 @@ namespace TriadCompiler
         /// Пустой символ
         /// </summary>
         Nil,
+
         //by jum
         /// <summary>
         /// объявление графа
         /// </summary>
-        Graph
-        };
+        Graph,
+
+        /// <summary>
+        /// Начало интеллектуальной рутины
+        /// </summary>
+        IRoutine,
+
+        /// <summary>
+        /// Конец интеллектуальной рутины
+        /// </summary>
+        EndIRoutine,
+
+        /// <summary>
+        /// Правило
+        /// </summary>
+        Rule,
+
+        /// <summary>
+        /// Конец правила
+        /// </summary>
+        EndRule,
+
+        /// <summary>
+        /// Причина
+        /// </summary>
+        Reason
+    };
 
 
     /// <summary>
@@ -602,6 +628,13 @@ namespace TriadCompiler
             //Рутина
             keyIdentificatorTable.Add( "ROUTINE", Key.Routine );
             keyIdentificatorTable.Add( "ENDROUT", Key.EndRoutine );
+
+            // Интеллектуальная рутина
+            keyIdentificatorTable.Add("IROUTINE", Key.IRoutine);
+            keyIdentificatorTable.Add("ENDIROUT", Key.EndIRoutine);
+            keyIdentificatorTable.Add("RULE", Key.Rule);
+            keyIdentificatorTable.Add("ENDRULE", Key.EndRule);
+            keyIdentificatorTable.Add("REASON", Key.Reason);
 
             //Секция инициализации
             keyIdentificatorTable.Add( "INITIAL", Key.Initial );

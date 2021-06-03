@@ -39,7 +39,7 @@ namespace TriadCompiler
                     {
                     Key[] keySet = { Key.Identificator, Key.For, Key.Case, Key.While, 
                             Key.If, Key.Interlock, Key.Available, Key.Print, Key.Eor, Key.Foreach,
-                            Key.Let, Key.Put, Key.Structure, Key.Routine, Key.Model}; //by jum
+                            Key.Let, Key.Put, Key.Structure, Key.Routine, Key.IRoutine, Key.Model}; //by jum
 
                     startKeys = new List<Key>( keySet );
                     //ќбъ€вление переменных
@@ -120,6 +120,7 @@ namespace TriadCompiler
                         case Key.Structure:
                         //ќбъ€вление переменной-рутины
                         case Key.Routine:
+                        case Key.IRoutine:
                         //ќбъ€вление модельной переменной
                         case Key.Model:
                             statementList.AddRange(DesignVarDeclaration.Parse(endKeys));

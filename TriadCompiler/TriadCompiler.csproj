@@ -153,6 +153,7 @@
     <Compile Include="Разбор кода\Дизайн\DesignParser.cs" />
     <Compile Include="Разбор кода\Дизайн\DesignParser_Stat.cs" />
     <Compile Include="Разбор кода\Дизайн\Операторы\Simulate.cs" />
+    <Compile Include="Разбор кода\Рутина\Операторы\Rule.cs" />
     <Compile Include="Разбор кода\Условия моделирования\Операторы\Eor.cs" />
     <Compile Include="Разбор кода\Условия моделирования\Операторы\IPCall\IPCallInfo.cs" />
     <Compile Include="Разбор кода\Информационная процедура\Заголовок\InfHeader.cs" />

@@ -145,7 +145,7 @@ namespace TriadCompiler
                         /// Недопустимые типы при возврате значения функции
                         /// </summary>
                         public const int InReturn = 311;
-                        }
+                    }
                     }
 
                 /// <summary>
@@ -402,7 +402,11 @@ namespace TriadCompiler
                     /// Недопустимый контекст объявления переменной
                     /// </summary>
                     public const int VarDeclaration = 152;
-                    }
+                    /// <summary>
+                    /// Неверный контекст Rule
+                    /// </summary>
+                    public const int Rule = 153;
+                }
                 }
 
 
@@ -515,7 +519,15 @@ namespace TriadCompiler
                 /// Spy-объект
                 /// </summary>
                 public const int SpyObject = 234;
-                }
+                /// <summary>
+                /// Интеллектуальная рутина
+                /// </summary>
+                public const int IRoutine = 235;
+                /// <summary>
+                /// Объявление события
+                /// </summary>
+                public const int RuleDeclarationName = 236;
+            }
 
 
             /// <summary>
@@ -635,8 +647,11 @@ namespace TriadCompiler
                 /// Константное множество
                 /// </summary>
                 public const int ConstantSet = 285;
-
-                }
+                /// <summary>
+                /// Интеллектуальная рутина
+                /// </summary>
+                public const int IRoutine = 286;
+            }
             }
 
         public struct Generator

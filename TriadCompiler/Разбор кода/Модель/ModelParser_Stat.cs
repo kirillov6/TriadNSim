@@ -33,7 +33,7 @@ namespace TriadCompiler
                 if ( modelStatementSet == null )
                     {
                     Key[] keySet = { Key.Identificator, Key.For, Key.While, Key.If, Key.Structure,
-                        Key.Routine, Key.Model, Key.Let, Key.Put, Key.Foreach , Key.Print /*by jum*/};
+                        Key.Routine, Key.IRoutine, Key.Model, Key.Let, Key.Put, Key.Foreach , Key.Print /*by jum*/};
 
                     modelStatementSet = new List<Key>( keySet );
                     //ќбъ€вление переменных
@@ -112,6 +112,7 @@ namespace TriadCompiler
                         case Key.Structure:
                         //ќбъ€вление переменной-рутины
                         case Key.Routine:
+                        case Key.IRoutine:
                         //ќбъ€вление модельной переменной
                         case Key.Model:
                             statementList.AddRange(DesignVarDeclaration.Parse( endKeys ));

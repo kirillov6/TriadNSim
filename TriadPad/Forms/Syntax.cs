@@ -169,6 +169,11 @@ namespace TriadPad.Forms
             this.keyWordList.Add( "to", KeyWordType.Operator );
             this.keyWordList.Add( "while", KeyWordType.Operator );
             this.keyWordList.Add("graph", KeyWordType.Type);
+            this.keyWordList.Add("iroutine", KeyWordType.Bound);
+            this.keyWordList.Add("endirout", KeyWordType.Bound);
+            this.keyWordList.Add("rule", KeyWordType.Bound);
+            this.keyWordList.Add("endrule", KeyWordType.Bound);
+            this.keyWordList.Add("reason", KeyWordType.Operator);
             }
 
 

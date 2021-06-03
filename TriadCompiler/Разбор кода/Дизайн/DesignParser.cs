@@ -52,7 +52,7 @@ namespace TriadCompiler
                 DesignTypeType dType = null;
 
                 //Имя дизайна
-                HeaderName.Parse( endKey.UniteWith( Key.Model, Key.Routine, Key.Structure, Key.SimCondition, Key.IProcedure, Key.Define, Key.EndDesign ),
+                HeaderName.Parse( endKey.UniteWith( Key.Model, Key.Routine, Key.IRoutine, Key.Structure, Key.SimCondition, Key.IProcedure, Key.Define, Key.EndDesign ),
                     delegate( string headerName )
                         {
                         dType = new DesignTypeType( headerName, DesignTypeCode.Design );
@@ -68,6 +68,7 @@ namespace TriadCompiler
                 //Объявления моделей, рутин, структур, условий моделирования
                 while ( ( currKey == Key.Model ) ||
                         ( currKey == Key.Routine ) ||
+                        ( currKey == Key.IRoutine ) ||
                         ( currKey == Key.Structure ) ||
                         ( currKey == Key.SimCondition ) )
                     {
@@ -82,6 +83,7 @@ namespace TriadCompiler
                             Fabric.Instance.Builder = new GraphCodeBuilder();
                             break;
                         case Key.Routine:
+                        case Key.IRoutine:
                             Fabric.Instance.Parser = new RoutineParser();
                             Fabric.Instance.Builder = new RoutineCodeBuilder();
                             break;
@@ -97,7 +99,7 @@ namespace TriadCompiler
 
                     Fabric.Instance.Scanner.SaveSymbol( currSymbol );
                     //Запускаем разбор
-                    Fabric.Instance.Parser.Compile( endKey.UniteWith( Key.Model, Key.Routine, Key.Structure,
+                    Fabric.Instance.Parser.Compile( endKey.UniteWith( Key.Model, Key.Routine, Key.IRoutine, Key.Structure,
                         Key.SimCondition, Key.Define, Key.EndDesign ) );
 
                     //Генерируем код

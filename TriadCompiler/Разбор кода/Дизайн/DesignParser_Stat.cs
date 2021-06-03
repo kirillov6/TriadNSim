@@ -35,7 +35,7 @@ namespace TriadCompiler
                     {
                     Key[] keySet = { Key.Identificator, 
                                      Key.For, Key.While, Key.If, Key.Case, Key.Print,
-                                     Key.Structure, Key.Routine, Key.Model, Key.Let, Key.Put,                                                             
+                                     Key.Structure, Key.Routine, Key.IRoutine, Key.Model, Key.Let, Key.Put,                                                             
                                      Key.Eor, Key.Simulate, Key.Foreach };
 
                     startKeys = new List<Key>( keySet );
@@ -85,6 +85,7 @@ namespace TriadCompiler
                         case Key.Structure:
                         //ќбъ€вление переменной-рутины
                         case Key.Routine:
+                        case Key.IRoutine:
                         //ќбъ€вление модельной переменной
                         case Key.Model:
                             statementList.AddRange(DesignVarDeclaration.Parse( endKeys ));
