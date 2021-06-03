@@ -1,0 +1,49 @@
+iroutine RTestIRoutine(InOut Con[10])[Integer WinValue; Boolean IsStarter]
+	initial
+		Integer CurValue := 0;
+		Boolean GameOver := false;
+		
+		if (IsStarter) then
+			schedule SendEvent in RandomIn(1, 10) + RandomRealIn(0, 1);
+		endif;
+	endi
+	
+	event;
+		rule IncreaseValue
+			if !GameOver then
+				CurValue := CurValue + StrToInt(message);
+				print "Текущее значение = " + ToStr(CurValue);
+			endif;
+		endrule;
+		
+		rule Win
+			if !GameOver & (CurValue = WinValue) then
+				schedule WinEvent in 0.01;
+			endif;
+		endrule;
+			
+		rule IsGreater10
+			if !GameOver & (CurValue > WinValue) then
+				CurValue := 0;
+			endif;
+			reason "Значение больше " + ToStr(WinValue) + ", обнуляем";
+		endrule;
+		
+		rule Work
+			if !GameOver & (CurValue < WinValue) then
+				schedule SendEvent in RandomIn(1, 10) + RandomRealIn(0, 1);
+			endif;
+			reason "Значение меньше " + ToStr(WinValue) + ", играем дальше";
+		endrule;
+	ende
+	
+	event WinEvent;
+		print "Я победил!";
+		GameOver := true;
+	ende
+	
+	event SendEvent;
+		out ToStr(RandomIn(1, 4));
+	ende
+
+endirout
