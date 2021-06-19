@@ -1,0 +1,531 @@
+iroutine RDSR(InOut Con[10])[String NodeID; String DestinationID; Integer MaxCacheLen; Integer ReqPeriod]
+	// Инициализация
+	initial
+		array[10] of String Neighbors; // Соседи
+		
+		// RREQ - [UniqueID; Source; Destination; Path]
+		array[4] of String RREQ_TO, RREQ_FROM; // Отправляемый/Принимаемый пакеты RREQ
+		Integer RREQID;
+		String usedRREQs := ""; // Обработанные пакеты
+		
+		// RREP - [Source; Destination; Path]
+		array[3] of String RREP_TO, RREP_FROM; // Отправляемый/Принимаемый пакеты RREP
+		
+		// RERR - [to/from; Source; Destination; Path; isActive]
+		array[5] of String RERR; // Пакет RERR
+		
+		// RMSG - [Source; Destination; Path; msg]
+		array[4] of String RMSG_TO, RMSG_FROM; // Пакет сообщения
+		String msg := ""; // Сообщение для отправки
+		
+		// Формат кеша - A;D;B-C (А - узел-источник, D - узел назначения, B-C - путь)
+		array[128] of String RoutesCache; // Кэш маршрутов
+		Integer lastCachedIndex := -1; // Ключ последнего маршрута в кеше		
+				
+		String RPType := ""; // Тип пакета при маршрутизации
+		
+		// Временный мусор
+		array[3] of String tmpCache; // Для сплита данных кеша
+		array[100] of String tmpPath; // Для сплита пути кеша
+		Boolean isCached := false; // Флаг для проверки, закеширован ли маршрут
+		Integer i := 0, k := 0; // Индекс для циклов
+		String tmpStr; // Временная строка
+		array[10] of String tmpRecMsg; // Для сплита полученных сообщений
+		Boolean tmpCheck; // Временный флаг
+		Integer curInPath := 0; // Для определения текущего в списке маршрута
+		Boolean isLastInPath := false; // Для определения, последний ли в маршруте
+		array[4] of String tmpRouting; // Для маршрутизации
+		
+		for i := 0 to 9 do			
+			Neighbors[i] := "";
+		endf;
+		
+		print "Мой ID: " + NodeID;
+		schedule HelloNeighbors in 1;
+	endi
+	
+	// Главное событие
+	event;
+		// Получаем сообщение
+		tmpRecMsg:= Split(message, ';');
+		
+		// Получили RREQ
+		rule RREQ
+			if (tmpRecMsg[0] = "RREQ") then
+				schedule WorkRREQ in 0.01;
+			endif;
+			reason "Получил пакет RREQ";
+		endrule;
+		
+		rule RREP
+			if (tmpRecMsg[0] = "RREP") then				
+				schedule WorkRREP in 0.01;
+			endif;
+			reason "Получил пакет RREP";
+		endrule;
+
+		rule RERR
+			if (tmpRecMsg[0] = "RERR") then
+				schedule WorkRERR in 0.01;
+			endif;
+			reason "Получил пакет RERR";
+		endrule;
+		
+		rule MSG
+			if (tmpRecMsg[0] = "MSG") then
+				schedule WorkMSG in 0.01;
+			endif;
+			reason "Получил сообщение";
+		endrule;
+		
+		rule FillNeighbors
+			if (tmpRecMsg[0] = "Hello") then
+				for i := 0 to 9 do
+					case Con[i]:
+						Neighbors[i] := tmpRecMsg[1];
+					endc;
+				endf;
+			endif;
+		endrule;
+	ende
+	
+	// Отправка сообщений о себе узлам-соседям
+	event HelloNeighbors;
+		out "Hello;" + NodeID;
+		schedule PrintNeighbors in 1;
+	ende
+	
+	// Заполнение списка соседей
+	event PrintNeighbors;
+		tmpStr := "[";
+		tmpCheck := false;
+		for i := 0 to 9 do
+			if Neighbors[i] != "" then
+				if tmpCheck then
+					tmpStr := tmpStr + ";"
+				endif;
+				tmpStr := tmpStr + Neighbors[i];
+				tmpCheck := true;
+			endif;
+		endf;		
+		
+		print "Список моих соседей: " + tmpStr + "]";
+		schedule SendRequest in ReqPeriod + (Integer)(RandomIn(0, 4) - 2) + RandomRealIn(0,1); // Отправляем с промежутком ReqPeriod +- 2
+	ende
+	
+	// Обрабтка пакета RREQ
+	event WorkRREQ;
+		// Если пришел пакет, который уже обработали, то сбрасываем
+		if StrContains(usedRREQs, "_" + tmpRecMsg[1] + "_") then	
+			print "Пакет с ID = " + tmpRecMsg[1] + " уже обработан";		
+			cancel WorkRREQ;
+		endif;
+					
+		RREQ_FROM[0] := tmpRecMsg[1];
+		RREQ_FROM[1] := tmpRecMsg[2];
+		RREQ_FROM[2] := tmpRecMsg[3];
+		RREQ_FROM[3] := tmpRecMsg[4];
+	
+		print "Получил пакет RREQ: [" + RREQ_FROM[0] + ";" + RREQ_FROM[1] + ";" + RREQ_FROM[2] + ";" + RREQ_FROM[3] + "]";
+		
+		// Если текущий узел является узлом назначения
+		if RREQ_FROM[2] = NodeID then
+			RREP_TO[0] := RREQ_FROM[1];
+			RREP_TO[1] := RREQ_FROM[2];
+			RREP_TO[2] := RREQ_FROM[3];
+		
+			print "Пакет предназначен мне. Отправляю узлу " + RREP_TO[0] + " пакет RREP";
+						
+			// Определяем первого получателя
+			tmpStr := "";
+			if RREP_TO[2] != "!empty" then
+				for i := 0 to 100 do
+					tmpPath[i] := "";
+				endf;
+				
+				tmpPath := Split(RREP_TO[2], '-');
+				
+				// Ищем последнего в списке маршрута
+				curInPath := 99;
+				while tmpPath[curInPath] = "" do
+					curInPath := curInPath - 1;
+				endw;
+				
+				tmpStr := tmpPath[curInPath];
+			else
+				tmpStr := RREP_TO[0];
+			endif;
+			
+			for i := 0 to 9 do
+				if Neighbors[i] = tmpStr then;
+					out ("RREP;" + RREP_TO[0] + ";" + RREP_TO[1] + ";" + RREP_TO[2]) through Con[i];
+					cancel WorkRREQ;
+				endif;
+			endf;			
+		else
+			print "Пакет предназначен не мне. Отправляю пакеты RREQ соседям для поиска пути";
+			
+			// Запоминаем, что это сообщение мы обработали
+			usedRREQs := usedRREQs + "_" + ToStr(RREQ_FROM[0]) + "_;";
+			
+			schedule RoutingRREQ in ReqPeriod + (Integer)(RandomIn(0, 4) - 2) + RandomRealIn(0,1); // Отправляем с промежутком ReqPeriod +- 2
+		endif;
+	ende
+	
+	// Обрабтка пакета RREP
+	event WorkRREP;		
+		RREP_FROM[0] := tmpRecMsg[1];
+		RREP_FROM[1] := tmpRecMsg[2];
+		RREP_FROM[2] := tmpRecMsg[3];
+		
+		print "Получил пакет RREP: [" + RREP_FROM[0] + ";" + RREP_FROM[1] + ";" + RREP_FROM[2] + "]";
+		
+		// Если текущий узел является узлом назначения
+		if RREP_FROM[0] = NodeID then
+			RMSG_TO[0] := RREP_FROM[0];
+			RMSG_TO[1] := RREP_FROM[1];
+			RMSG_TO[2] := RREP_FROM[2];
+			RMSG_TO[3] := msg;
+
+			print "Пакет предназначен мне. Кеширую маршрут и отправляю сообщение {" + RMSG_TO[3] + "} узлу " + RMSG_TO[1];
+			
+			// Кешируем маршрут
+			lastCachedIndex := lastCachedIndex + 1;
+			RoutesCache[lastCachedIndex] := RMSG_TO[0] + ";" + RMSG_TO[1] + ";" + RMSG_TO[2];
+			
+			// Определяем первого получателя
+			tmpStr := "";
+			if RMSG_TO[2] != "!empty" then
+				for i := 0 to 100 do
+					tmpPath[i] := "";
+				endf;
+
+				tmpPath := Split(RREP_TO[2], '-');
+				
+				// Берем первого из списка маршрутов				
+				tmpStr := tmpPath[0];
+			else
+				tmpStr := RMSG_TO[1];
+			endif;
+			
+			for i := 0 to 9 do
+				if Neighbors[i] = tmpStr then;
+					out ("MSG;" + RMSG_TO[0] + ";" + RMSG_TO[1] + ";" + RMSG_TO[2] + ";" + RMSG_TO[3]) through Con[i];
+					schedule SendRequest in ReqPeriod + (Integer)(RandomIn(0, 4) - 2) + RandomRealIn(0,1); // Отправляем с промежутком ReqPeriod +- 2
+					cancel WorkRREP;
+				endif;
+			endf;			
+		else
+			print "Пакет предназначен не мне. Отправляю пакет дальше";
+			
+			RPType := "RREP";
+					
+			schedule RoutingWithPath in ReqPeriod + (Integer)(RandomIn(0, 4) - 2); // Отправляем с промежутком ReqPeriod +- 2
+		endif;
+	ende
+	
+	// Обрабтка пакета RERR
+	event WorkRERR;
+		RERR[0] := tmpRecMsg[1];
+		RERR[1] := tmpRecMsg[2];
+		RERR[2] := tmpRecMsg[3];
+		RERR[3] := tmpRecMsg[4];
+		RERR[4] := tmpRecMsg[5];
+	
+		print "Получил пакет RERR: [" + RERR[0] + ";" + RERR[1] + ";" + RERR[2] + ";" + RERR[3] + ";" + RERR[4] + "]";
+		
+		// Если текущий узел является узлом назначения
+		if ((RERR[0] = "to") & (RERR[2] = NodeID)) | ((RERR[0] = "from") & (RERR[1] = NodeID)) then
+			if (RERR[0] = "to") then
+				print "Пакет предназначен мне. Отправляю узлу " + RERR[1] + " пакет RERR, сообщая о своем статусе";
+				
+				// Определяем первого получателя
+				tmpStr := "";
+				if RERR[3] != "!empty" then
+					for i := 0 to 100 do
+						tmpPath[i] := "";
+					endf;
+
+					tmpPath := Split(RERR[3], '-');					
+				
+					// Ищем последнего в списке маршрута
+					curInPath := 99;
+					while tmpPath[curInPath] = "" do
+						curInPath := curInPath - 1;
+					endw;
+					
+					tmpStr := tmpPath[curInPath];
+				else
+					tmpStr := RERR[1];
+				endif;
+				
+				for i := 0 to 9 do
+					if Neighbors[i] = tmpStr then;
+						out ("RERR;from;" + RERR[1] + ";" + RERR[2] + ";" + RERR[3] + ";" + RERR[4]) through Con[i];
+						cancel WorkRERR;
+					endif;
+				endf;	
+			else
+				if (RERR[4] = "true") then
+					print "Пакет предназначен мне. Узел назначения доступен, поэтому отправляю сообщение {" + msg + "} узлу " + RERR[2];
+					
+					RMSG_TO[0] := RERR[1];
+					RMSG_TO[1] := RERR[2];
+					RMSG_TO[2] := RERR[3];
+					RMSG_TO[3] := msg;
+					
+					// Определяем первого получателя
+					tmpStr := "";
+					if RERR[3] != "!empty" then
+						for i := 0 to 100 do
+							tmpPath[i] := "";
+						endf;
+
+						tmpPath := Split(RERR[3], '-');
+						
+						// Берем первого в списке маршрута								
+						tmpStr := tmpPath[0];
+					else
+						tmpStr := RERR[2];
+					endif;
+					
+					for i := 0 to 9 do
+						if Neighbors[i] = tmpStr then;
+							out ("MSG;" + RMSG_TO[0] + ";" + RMSG_TO[1] + ";" + RMSG_TO[2] + ";" + RMSG_TO[3]) through Con[i];
+							schedule SendRequest in ReqPeriod + (Integer)(RandomIn(0, 4) - 2) + RandomRealIn(0,1); // Отправляем с промежутком ReqPeriod +- 2
+							cancel WorkRERR;
+						endif;
+					endf;			
+				else
+					print "Пакет предназначен мне. Узел назначения недоступен, поэтому ищу новый маршрут";
+					
+					// Рассылаем RREQ соседям
+					schedule SendRREQ in 0.01;
+				endif;
+			endif;		
+		else
+			print "Пакет предназначен не мне. Отправляю пакет дальше";
+			
+			RPType := "RERR";
+						
+			schedule RoutingWithPath in ReqPeriod + (Integer)(RandomIn(0, 4) - 2) + RandomRealIn(0,1); // Отправляем с промежутком ReqPeriod +- 2
+		endif;
+	ende
+
+	// Обработка сообщений
+	event WorkMSG;
+		RMSG_FROM[0] := tmpRecMsg[1];
+		RMSG_FROM[1] := tmpRecMsg[2];
+		RMSG_FROM[2] := tmpRecMsg[3];
+		RMSG_FROM[3] := tmpRecMsg[4];
+		
+		// Если текущий узел является узлом назначения
+		if RMSG_FROM[1] = NodeID then
+			print "Получил сообщение {" + RMSG_FROM[3] + "} от узла " + RMSG_FROM[0];
+		else
+			RPType := "MSG";
+			
+			schedule RoutingWithPath in ReqPeriod + (Integer)(RandomIn(0, 4) - 2); // Отправляем с промежутком ReqPeriod +- 2
+		endif;
+	ende
+	
+	// Маршрутизация RREQ
+	event RoutingRREQ;
+		// Сообщение
+		tmpStr := "";
+		for i := 0 to 3 do
+			// Добавляем узел в пройденный маршрут
+			if i = 3 then
+				if RREQ_FROM[i] = "!empty" then
+					tmpStr := tmpStr + NodeID;
+				else
+					tmpStr := tmpStr + RREQ_FROM[i] + "-" + NodeID;
+				endif;
+			else
+				tmpStr := tmpStr + RREQ_FROM[i] + ";";
+			endif;
+		endf;	
+			
+		// Каждому соседу отправляем пакет RREQ
+		for i := 0 to 9 do
+			if Neighbors[i] != "" then					
+				out tmpStr through Con[i];
+			endif;
+		endf;
+	ende
+	
+	// Маршрутизация по существующему пути
+	event RoutingWithPath;
+		// Определяем тип пакета
+		if RPType = "RREP" then
+			tmpRouting[0] := RREP_FROM[0];
+			tmpRouting[1] := RREP_FROM[1];
+			tmpRouting[2] := RREP_FROM[2];
+		endif;
+		if RPType = "RERR" then
+			tmpRouting[0] := RERR[0];
+			tmpRouting[1] := RERR[1];
+			tmpRouting[2] := RERR[2];
+			tmpRouting[3] := RERR[3];
+		endif;
+		if RPType = "MSG" then
+			tmpRouting[0] := RMSG_FROM[0];
+			tmpRouting[1] := RMSG_FROM[1];
+			tmpRouting[2] := RMSG_FROM[2];
+			tmpRouting[3] := RMSG_FROM[3];
+		endif;
+				
+		// Определяем следующего получателя
+		tmpStr := "";
+		if tmpRouting[2] != "!empty" then
+			for i := 0 to 100 do
+				tmpPath[i] := "";
+			endf;
+			
+			tmpPath := Split(tmpRouting[2], '-');
+			
+			// Проверим, является ли текущий узел последним в списке маршрута
+			curInPath := 0;
+			while (tmpPath[curInPath] != NodeID) do
+				curInPath := curInPath + 1;
+			endw;
+			
+			if RPType = "RREP" then
+				isLastInPath := curInPath = 0;
+			endif;
+			if RPType = "RERR" then
+				if tmpRouting[3] = "false" then
+					isLastInPath := tmpPath[curInPath + 1] = "";
+				else
+					isLastInPath := curInPath = 0;
+				endif;
+			endif;
+			if RPType = "MSG" then
+				isLastInPath := tmpPath[curInPath + 1] = "";
+			endif;
+			
+			// Ищем текущий узел в списке маршрута последний - то передаем узлу назначения
+			if isLastInPath then
+				if RPType = "RREP" then
+					tmpStr := tmpRouting[0];
+				endif;
+				if RPType = "RERR" then
+					if tmpRouting[3] = "false" then
+						tmpStr := tmpRouting[1];
+					else
+						tmpStr := tmpRouting[0];
+					endif;
+				endif;
+				if RPType = "MSG" then
+					tmpStr := tmpRouting[1];
+				endif;
+			else
+				if RPType = "RREP" then
+					tmpStr := tmpPath[curInPath - 1];
+				endif;
+				if RPType = "RERR" then
+					if tmpRouting[3] = "false" then
+						tmpStr := tmpPath[curInPath + 1];
+					else
+						tmpStr := tmpPath[curInPath - 1];
+					endif;
+				endif;
+				if RPType = "MSG" then
+					tmpStr := tmpPath[curInPath + 1];
+				endif;
+			endif;						
+		else
+			if RPType = "RREP" then
+				tmpStr := tmpRouting[0];
+			endif;
+			if RPType = "RERR" then
+				if tmpRouting[3] = "false" then
+					tmpStr := tmpRouting[1];
+				else
+					tmpStr := tmpRouting[0];
+				endif;
+			endif;
+			if RPType = "MSG" then
+				tmpStr := tmpRouting[1];
+			endif;		
+		endif;
+		
+		for i := 0 to 9 do
+			if Neighbors[i] = tmpStr then
+				tmpStr := RPType + ";" + tmpRouting[0] + ";" + tmpRouting[1] + ";" + tmpRouting[2];
+				if RPType != "RREP" then
+					tmpStr := tmpStr + ";" + tmpRouting[3];
+				endif;
+				
+				out tmpStr through Con[i];
+				cancel RoutingWithPath;
+			endif;
+		endf;			
+	ende
+	
+	// Разослать пакеты RREQ соседям
+	event SendRREQ;
+		// Формируем пакет RREQ для отправки
+		RREQID := RandomIn(0, 1000);
+		RREQ_TO[0] := ToStr(RREQID);
+		RREQ_TO[1] := NodeID;
+		RREQ_TO[2] := DestinationID;
+		RREQ_TO[3] := "!empty";			
+			
+		tmpStr := "RREQ;";
+		for i := 0 to 3 do
+			tmpStr := tmpStr + RREQ_TO[i];
+			if i != 3 then
+				tmpStr := tmpStr + ";";
+			endif;
+		endf;
+			
+		// Запоминаем, что это сообщение мы обработали
+		usedRREQs := usedRREQs + "_" + ToStr(RREQID) + "_;";
+		
+		// Каждому соседу отправляем пакет RREQ
+		for i := 0 to 9 do
+			if Neighbors[i] != "" then					
+				out tmpStr through Con[i];
+			endif;
+		endf;
+	ende
+		
+	// Отправка сообщения заданному узлу
+	event SendRequest;
+		// Формируем сообщение
+		msg := "msg" + ToStr(RandomIn(0, 100));
+		
+		print "Хочу отправить сообщение {" + msg + "} узлу " + DestinationID;
+		
+		// Проверяем кэш
+		isCached := false;
+		for i := 0 to lastCachedIndex do
+			tmpCache := Split(RoutesCache[i], ';');
+			if !isCached & (tmpCache[0] = NodeID) & (tmpCache[1] = DestinationID) then
+				isCached := true;
+				tmpPath := Split(tmpCache[2], '-');
+			endif;
+		endf;
+		
+		// Если закеширован, то отправляем запрос проверки доступности пути
+		if isCached then
+			print "Необходимый путь найден в кеше. Отправляю пакет RERR узлу " + DestinationID + " для проверки";
+			
+			k := 0;
+			for i := 0 to 9 do
+				if (Neighbors[i] != "") & (Neighbors[i] = tmpPath[0]) then
+					k := i;
+				endif;
+			endf;
+			
+			// Отправляем RERR - [Source; Destination; Path; isError]
+			out ("RERR;to;" + NodeID + ";" + DestinationID + ";" + tmpCache[2] + "; false") through Con[k];
+		else // Иначе ищем путь			
+			print "Необходимый путь в кеше не найден. Отправляю пакеты RREQ соседям для поиска пути";
+			
+			// Рассылаем RREQ соседям
+			schedule SendRREQ in 0.01;
+		endif;
+	ende
+endirout
