@@ -24,6 +24,10 @@ iroutine RDSR(InOut Con[10])[String NodeID; String DestinationID; Integer MaxCac
 				
 		String RPType := ""; // Тип пакета при маршрутизации
 		
+		// Для информационных процедур
+		Real RREQcount;
+		Real RREPcount;
+		
 		// Временный мусор
 		array[3] of String tmpCache; // Для сплита данных кеша
 		array[100] of String tmpPath; // Для сплита пути кеша
@@ -128,6 +132,8 @@ iroutine RDSR(InOut Con[10])[String NodeID; String DestinationID; Integer MaxCac
 	
 		print "Получил пакет RREQ: [" + RREQ_FROM[0] + ";" + RREQ_FROM[1] + ";" + RREQ_FROM[2] + ";" + RREQ_FROM[3] + "]";
 		
+		RREQcount := RREQcount + 1.0;
+		
 		// Если текущий узел является узлом назначения
 		if RREQ_FROM[2] = NodeID then
 			RREP_TO[0] := RREQ_FROM[1];
@@ -179,6 +185,8 @@ iroutine RDSR(InOut Con[10])[String NodeID; String DestinationID; Integer MaxCac
 		RREP_FROM[2] := tmpRecMsg[3];
 		
 		print "Получил пакет RREP: [" + RREP_FROM[0] + ";" + RREP_FROM[1] + ";" + RREP_FROM[2] + "]";
+		
+		RREPcount := RREPcount + 1.0;
 		
 		// Если текущий узел является узлом назначения
 		if RREP_FROM[0] = NodeID then
